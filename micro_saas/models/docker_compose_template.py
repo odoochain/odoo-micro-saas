@@ -11,8 +11,10 @@ _logger = logging.getLogger(__name__)
 # Docker Compose Template Autor David Montero Crespo
 class DockerComposeTemplate(models.Model):
     _name = 'docker.compose.template'
+    _inherit = ["mail.thread"]
     _description = 'Docker Compose Template'
     _order = 'sequence asc, id'
+
 
     _sql_constraints = [
         ('name_uniq', 'unique (name)', 'The name of the template must be unique !'),

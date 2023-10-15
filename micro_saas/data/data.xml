@@ -181,6 +181,64 @@ services:
             }),
         ]"/>
         </record>
+ <!-- Template para Odoo 16 -->
+        <record id="docker_compose_template_odoo16" model="docker.compose.template">
+            <field name="name">Odoo 16</field>
+            <field name="sequence">40</field>
+            <field name="active">True</field>
+            <field name="template_dc_body"><![CDATA[
+version: '2'
+services:
+  db:
+    image: postgres:{{POSTGRES-VERSION}}
+    user: root
+    environment:
+      - POSTGRES_PASSWORD=odoo
+      - POSTGRES_USER=odoo
+      - POSTGRES_DB=postgres
+    restart: always
+    volumes:
+      - ./postgresql:/var/lib/postgresql/data
 
+  odoo16:
+    image: odoo:{{ODOO-VERSION}}
+    user: root
+    depends_on:
+      - db
+    ports:
+      - "{{HTTP-PORT}}:8069"
+      - "{{LONGPOLLING-PORT}}:8072"
+    tty: true
+    command: --
+    environment:
+      - HOST=db
+      - USER=odoo
+      - PASSWORD=odoo
+    volumes:
+      - ./addons:/mnt/extra-addons
+      - ./etc:/etc/odoo
+      - ./data:/var/lib/odoo
+    restart: always
+]]></field>
+            <field name="variable_ids" eval="[
+            (5, 0, 0),
+            (0, 0, {
+                'name': '{{POSTGRES-VERSION}}',
+                'demo_value': '12',
+            }),
+            (0, 0, {
+                'name': '{{ODOO-VERSION}}',
+                'demo_value': '16',
+            }),
+            (0, 0, {
+                'name': '{{HTTP-PORT}}',
+                'demo_value': '8069',
+            }),
+            (0, 0, {
+                'name': '{{LONGPOLLING-PORT}}',
+                'demo_value': '8072',
+            }),
+        ]"/>
+        </record>
     </data>
 </odoo>

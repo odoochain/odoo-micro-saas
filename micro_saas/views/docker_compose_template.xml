@@ -63,7 +63,7 @@
                                     <tree string="Repository and Branch" editable="bottom">
                                         <field name="repository_id"/>
                                         <field name="name"/>
-                                        <field name="is_clone" readonly="1" widget="boolean_button"/>
+                                        <field name="is_clone" readonly="1" widget="boolean"/>
                                     </tree>
                                 </field>
                             </page>
