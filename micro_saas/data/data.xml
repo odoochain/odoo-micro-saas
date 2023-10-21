@@ -224,7 +224,7 @@ services:
             (5, 0, 0),
             (0, 0, {
                 'name': '{{POSTGRES-VERSION}}',
-                'demo_value': '12',
+                'demo_value': '15',
             }),
             (0, 0, {
                 'name': '{{ODOO-VERSION}}',
