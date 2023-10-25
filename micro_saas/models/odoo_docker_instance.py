@@ -2,9 +2,12 @@ import logging
 import os
 import socket
 import subprocess
+import sys
 from datetime import datetime
 
+
 from odoo import models, fields, api
+from odoo.tools import appdirs
 
 _logger = logging.getLogger(__name__)
 
@@ -53,10 +56,18 @@ class OdooDockerInstance(models.Model):
 
     @api.depends('name')
     def _compute_user_path(self):
+        # home = os.path.expanduser('~')
+        # if os.path.isdir(home):
+        #     func = appdirs.user_data_dir
+        # else:
+        #     if sys.platform in ['win32', 'darwin']:
+        #         func = appdirs.site_data_dir
+        #     else:
+        #         func = lambda **kwarg: "/var/lib/%s" % kwarg['appname'].lower()
         for instance in self:
             if not instance.name:
                 continue
-            instance.user_path = os.path.expanduser('~')
+            instance.user_path = os.path.expanduser('~')  # os.path.expanduser('~') or func
             instance.instance_data_path = os.path.join(instance.user_path, 'odoo_docker', 'data',
                                                        instance.name.replace('.', '_').replace(' ', '_').lower())
             instance.result_dc_body = self._get_formatted_body(demo_fallback=True)

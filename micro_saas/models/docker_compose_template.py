@@ -15,7 +15,6 @@ class DockerComposeTemplate(models.Model):
     _description = 'Docker Compose Template'
     _order = 'sequence asc, id'
 
-
     _sql_constraints = [
         ('name_uniq', 'unique (name)', 'The name of the template must be unique !'),
     ]
