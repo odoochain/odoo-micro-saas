@@ -39,7 +39,7 @@ class OdooDockerInstance(models.Model):
             self.template_dc_body = self.template_id.template_dc_body
             self.tag_ids = self.template_id.tag_ids
             self.repository_line = self.template_id.repository_line
-            self.result_dc_body = self._get_formatted_body(demo_fallback=True)
+            self.result_dc_body = self._get_formatted_body(template_body=self.template_dc_body, demo_fallback=True)
             self.variable_ids = self.template_id.variable_ids
             self.variable_ids.filtered(lambda r: r.name == '{{HTTP-PORT}}').demo_value = self.http_port
             self.variable_ids.filtered(lambda r: r.name == '{{LONGPOLLING-PORT}}').demo_value = self.longpolling_port
@@ -70,7 +70,8 @@ class OdooDockerInstance(models.Model):
             instance.user_path = os.path.expanduser('~')  # os.path.expanduser('~') or func
             instance.instance_data_path = os.path.join(instance.user_path, 'odoo_docker', 'data',
                                                        instance.name.replace('.', '_').replace(' ', '_').lower())
-            instance.result_dc_body = self._get_formatted_body(demo_fallback=True)
+            instance.result_dc_body = self._get_formatted_body(template_body=instance.template_dc_body,
+                                                               demo_fallback=True)
 
     @api.depends('repository_line')
     def _compute_addons_path(self):
@@ -146,7 +147,6 @@ class OdooDockerInstance(models.Model):
         modified_path = os.path.join(self.instance_data_path, 'docker-compose.yml')
         self.create_file(modified_path, self.result_dc_body)
 
-
     def _get_repo_name(self, line):
         if not line.repository_id or not line.name or not line.repository_id.name:
             return ''
@@ -154,8 +154,6 @@ class OdooDockerInstance(models.Model):
         name = name_repo_url.replace('.git', '').replace('.', '_').replace('-', '_').replace(' ', '_').replace(
             '/', '_').replace('\\', '_') + "_branch_" + line.name.replace('.', '_')
         return name
-
-
 
     def _clone_repositories(self):
         for instance in self:
@@ -179,24 +177,20 @@ class OdooDockerInstance(models.Model):
 
     def _create_odoo_conf(self):
         for instance in self:
-            odoo_conf_path = os.path.join(self.instance_data_path, "etc", 'odoo.conf')
-            self._makedirs(os.path.dirname(odoo_conf_path))
-            addons_path = instance.addons_path
+            odoo_conf_path = os.path.join(instance.instance_data_path, "etc", 'odoo.conf')
+            instance._makedirs(os.path.dirname(odoo_conf_path))
             try:
-                odoo_conf_content = f"[options]\naddons_path = {addons_path}\n"
-                odoo_conf_content += "admin_passwd = admin\n"
-                odoo_conf_content += "data_dir = /var/lib/odoo\n"
-                odoo_conf_content += "logfile = /var/log/odoo/odoo.log\n"
-                self.create_file(odoo_conf_path, odoo_conf_content)
-                self.add_to_log(f"[INFO] Archivo odoo.conf creado exitosamente en {odoo_conf_path}")
+                odoo_conf_content = instance.result_odoo_conf
+                instance.create_file(odoo_conf_path, odoo_conf_content)
+                instance.add_to_log(f"[INFO] Archivo odoo.conf creado exitosamente en {odoo_conf_path}")
             except Exception as e:
-                self.add_to_log(f"[ERROR] Error al crear el archivo odoo.conf en {odoo_conf_path}")
-                self.write({'state': 'error'})
+                instance.add_to_log(f"[ERROR] Error al crear el archivo odoo.conf en {odoo_conf_path}")
+                instance.write({'state': 'error'})
                 if hasattr(e, 'stderr') and e.stderr:
-                    self.add_to_log("[ERROR]  " + e.stderr.decode('utf-8'))
+                    instance.add_to_log("[ERROR]  " + e.stderr.decode('utf-8'))
                 else:
-                    self.add_to_log("[ERROR]  " + str(e))
-                self.write({'state': 'stopped'})
+                    instance.add_to_log("[ERROR]  " + str(e))
+                instance.write({'state': 'stopped'})
 
     def start_instance(self):
         # Obtén un puerto disponible
@@ -216,17 +210,8 @@ class OdooDockerInstance(models.Model):
             # Ejecuta el comando de Docker Compose para levantar la instancia
             cmd = f"docker-compose -f {modified_path} up -d"
             self.excute_command(cmd, shell=True, check=True)
-            self.add_to_log("[INFO] Docker Compose command executed successfully")
             self.write({'state': 'running'})
         except Exception as e:
-            # Maneja cualquier otro error que pueda ocurrir al ejecutar Docker Compose
-            # Imprimir el stderr para obtener más detalles
-            cmd = f"docker-compose -f {modified_path} up -d"
-            self.add_to_log("[ERROR] Error to execute docker-compose command %s" % cmd)
-            if hasattr(e, 'stderr') and e.stderr:
-                self.add_to_log("[ERROR]  " + e.stderr.decode('utf-8'))
-            else:
-                self.add_to_log("[ERROR]  " + str(e))
             self.write({'state': 'error'})
 
     def stop_instance(self):
@@ -294,6 +279,13 @@ class OdooDockerInstance(models.Model):
             return result
         except Exception as e:
             self.add_to_log(f"Error to execute command: {str(e)}")
+            self.add_to_log("[INFO] **** Execute the following command manually from the terminal for more details "
+                            "****  " + cmd)
+            if hasattr(e, 'stderr') and e.stderr:
+                self.add_to_log("[ERROR]  " + e.stderr.decode('utf-8'))
+            else:
+                self.add_to_log("[ERROR]  " + str(e))
+            raise e
 
     def _makedirs(self, path):
         try:
@@ -302,7 +294,7 @@ class OdooDockerInstance(models.Model):
         except Exception as e:
             self.add_to_log(f"Error while creating directory {path} : {str(e)}")
 
-    def create_file(self,modified_path,result_dc_body):
+    def create_file(self, modified_path, result_dc_body):
         try:
             with open(modified_path, "w") as modified_file:
                 modified_file.write(result_dc_body)
